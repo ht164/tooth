@@ -1,0 +1,30 @@
+{
+  "name": "tooth",
+  "version": "0.0.1",
+  "description": "Mastodon Desktop Client",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nw",
+    "build-js": "browserify src/js/main.js src/js/const.js -o lib/app.js -t [ babelify --presets [ es2015 react ] ]"
+  },
+  "window": {
+    "toolbar": false,
+    "width": 400,
+    "height": 550
+  },
+  "author": "ht164 <ht164.pulsar@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "nw": "^0.24.1"
+  },
+  "devDependencies": {
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-react": "^6.24.1",
+    "babelify": "^7.3.0",
+    "browserify": "^14.4.0",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "react-tabs": "^1.1.0"
+  }
+}

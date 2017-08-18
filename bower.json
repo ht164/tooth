@@ -1,0 +1,20 @@
+{
+  "name": "tooth",
+  "description": "Mastodon Desktop Client",
+  "main": "index.html",
+  "authors": [
+    "ht164 <ht164.pulsar@gmail.com>"
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "react-tabs": "^1.1.0"
+  }
+}

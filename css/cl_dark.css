@@ -1,0 +1,26 @@
+body {
+  background: #2c3339;
+  color: white;
+}
+
+article.toot {
+  border-color: rgb(57, 63, 79);
+}
+
+span.account-name {
+  color: #798086;
+}
+
+div.toot-time {
+  color: #798086;
+}
+
+span.show-btn {
+  border-color: #ccc;
+  background-color: #666;
+  color: white;
+}
+
+a {
+  color: #99a0a6;
+}

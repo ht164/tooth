@@ -1,0 +1,80 @@
+body {
+  font-size: 14px;
+}
+
+/* overwrite react.css */
+.react-tabs__tab-list {
+  margin: 0 0 2px !important;
+}
+
+div#home_timeline {
+  max-height: 89vh;
+  overflow-y: scroll;
+}
+
+article.toot {
+  border-bottom: 0.7px solid;
+  min-height: 52px;
+}
+
+div.toot {
+  padding-left: 52px;
+  margin: 4px 0;
+  position: relative;
+}
+
+div.avatar {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 48px;
+  height: 48px;
+  background-size: 48px 48px;
+  border-radius: 4px;
+}
+
+div.name-area {
+  margin-bottom: 4px;
+}
+
+div.account {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+span.display-name {
+  font-weight: bold;
+}
+
+div.toot-time {
+  float: right;
+}
+
+div.message-area {
+  margin-bottom: 4px;
+}
+
+div.message-area p {
+  -webkit-margin-before: 0em;
+  -webkit-margin-after: 0em;
+  word-break: break-all;
+}
+
+div.message-area img {
+  max-width: 100%;
+}
+
+span.show-btn {
+  border: 0.6px solid;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+div.btn-area {
+  display: flex;
+}
+
+div.btn-area div.btn {
+  margin-right: 8px;
+}
