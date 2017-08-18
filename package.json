@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nw",
-    "build-js": "browserify src/js/main.js src/js/const.js -o lib/app.js -t [ babelify --presets [ es2015 react ] ]"
+    "build-js": "browserify src/js/main.js -o lib/app.js -t [ babelify --presets [ es2015 react ] ]"
   },
   "window": {
     "toolbar": false,
