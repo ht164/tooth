@@ -1,5 +1,5 @@
 body {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* overwrite react.css */
@@ -31,6 +31,16 @@ div.avatar {
   height: 48px;
   background-size: 48px 48px;
   border-radius: 4px;
+}
+
+div.boost_avatar {
+  position: absolute;
+  top: 54px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background-size: 18px 18px;
+  border-radius: 2px;
 }
 
 div.name-area {
