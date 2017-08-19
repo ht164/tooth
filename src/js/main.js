@@ -1,36 +1,125 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
+import { createStore, combineReducers } from 'redux';
+import { Provider, connect } from 'react-redux';
 
 var host = 'HOSTNAME';
 var access_token = 'ACCESS_TOKEN';
 
-/*
- * HTL Tab
+/**
+ * state
+ *
+ * {
+ *    toots: [ { toot }, { toot }, ... ],
+ *    config: { ... },
+ * }
  */
-class TootBox extends React.Component {
-  constructor() {
-    super();
-    this.state = {
-      toots: []
-    };
+const initialConfigState = {
+  color_theme: 'dark',
+};
+
+/**
+ * action
+ */
+const ACT_ADD = "add";
+const ACT_UPDATE = "update";
+const ACT_DELETE = "delete";
+const ACT_UPDATE_CONFIG = "update_config";
+
+function act_add(toots) {
+  return {
+    type: ACT_ADD,
+    toots: toots
+  };
+}
+function act_update(toot) {
+  return {
+    type: ACT_UPDATE,
+    toot: toot,
+  };
+}
+function act_delete(id) {
+  return {
+    type: ACT_DELETE,
+    id: id,
+  };
+}
+function act_update_config(config) {
+  return {
+    type: ACT_UPDATE_CONFIG,
+    config: config,
+  };
+}
+
+/**
+ * reducer
+ */
+function toots(state = [], action) {
+  switch (action.type) {
+    case ACT_ADD:
+      return action.toots.concat(state);
+    case ACT_UPDATE:
+      // TBD
+      return state;
+    case ACT_DELETE:
+      // TBD
+      return state;
+    default:
+      return state;
   }
+}
+
+function config(state = initialConfigState, action) {
+  switch (action.type) {
+    case ACT_UPDATE_CONFIG:
+      return Object.assign({}, state, action.config);
+    default:
+      return state;
+  }
+}
+
+const reducer = combineReducers({
+  toots,
+  config,
+});
+
+/**
+ * store
+ */
+const store = createStore(reducer, {});
+
+/*
+store.subscribe(() => {
+  // listener
+  // get state.
+  store.getState();
+});
+*/
+
+/**
+ * view (container component)
+ */
+// home timeline.
+class TootBox extends React.Component {
   createTootObj(toot) {
     var t = {
-      avatar: toot.account.avatar,
-      displayName: toot.account.display_name,
-      account: toot.account.acct,
+      avatar: (toot.reblog) ? toot.reblog.account.avatar : toot.account.avatar,
+      displayName: (toot.reblog) ? toot.reblog.account.display_name : toot.account.display_name,
+      account: (toot.reblog) ? toot.reblog.account.acct : toot.account.acct,
       message: toot.content,
       media_attachments: null,
       time: new Date(toot.created_at),
-      bt_count: toot.reblogs_count,
-      fav_count: toot.favourites_count,
-      sensitive: toot.sensitive,
-      spoiler_text: toot.spoiler_text,
+      bt_count: (toot.reblog) ? toot.reblog.reblogs_count : toot.reblogs_count,
+      fav_count: (toot.reglog) ? toot.reblog.favourites_count : toot.favourites_count,
+      sensitive: (toot.reblog) ? toot.reblog.sensitive : toot.sensitive,
+      spoiler_text: (toot.reblog) ? toot.reblog.spoiler_text : toot.spoiler_text,
+      boosted_by_avatar: (toot.reblog) ? toot.account.avatar : null,
     };
-    if (toot.media_attachments.length > 0) {
+    var media_attachments = (toot.reblog) ? toot.reblog.media_attachments : toot.media_attachments;
+    if (media_attachments.length > 0) {
       var ms = [];
-      toot.media_attachments.forEach((media_attachment) => {
+      media_attachments.forEach((media_attachment) => {
         ms.push({
           preview_url: media_attachment.preview_url,
           url: media_attachment.url
@@ -50,9 +139,7 @@ class TootBox extends React.Component {
       responseJson.forEach((toot) => {
         toots.push(this.createTootObj(toot));
       });
-      this.setState({
-        toots: toots
-      });
+      this.props.addToots(toots);
     })
     .catch((error) => {
       console.error(error)
@@ -65,9 +152,7 @@ class TootBox extends React.Component {
       var p = eval('(' + d.payload + ')');
       if (d.event == 'update') {
         var t = this.createTootObj(p);
-        this.setState({
-          toots: ([t]).concat(this.state.toots)
-        });
+        this.props.addToots([t]);
       }
     }
   }
@@ -78,22 +163,47 @@ class TootBox extends React.Component {
   render() {
     return (
       <div className="tootbox">
-        { this.state.toots.map((toot) =>
+        { this.props.toots.map((toot) =>
           <OneToot toot={ toot } />
         )}
       </div>
     );
   }
 }
+TootBox.propTypes = {
+  toots: React.PropTypes.array,
+  addToots: React.PropTypes.func,
+};
 
-class OneToot extends React.Component {
-  constructor() {
-    super();
-    this.state = {
+// connect react to redux
+const TootBoxContainer = connect(
+  (state) => {
+    return {
+      toots: state.toots,
+    };
+  },
+  (dispatch) => {
+    return {
+      addToots(toots) {
+        dispatch(act_add(toots));
+      },
     };
   }
+)(TootBox);
+
+/**
+ * view (presentational component)
+ */
+// each toot
+class OneToot extends React.Component {
   render() {
     const toot = this.props.toot;
+    let boost_avatar = null;
+    if (toot.boosted_by_avatar) {
+      boost_avatar = (
+        <div className="boost_avatar" style={{ backgroundImage: "url(" + toot.boosted_by_avatar + ")"}}></div>
+      );
+    }
     let media = null;
     if (toot.media_attachments) {
       media =  toot.media_attachments.map((media_attachment) =>
@@ -108,6 +218,7 @@ class OneToot extends React.Component {
       <article className="toot">
         <div className="toot">
           <div className="avatar" style={{ backgroundImage: "url(" + toot.avatar + ")"}}></div>
+          { boost_avatar }
           <div className="name-area">
             <div className="toot-time">{ toot_time }</div>
             <div className="account">
@@ -129,20 +240,15 @@ class OneToot extends React.Component {
   }
 }
 
+// toot message
 class TootMessage extends React.Component {
-  constructor() {
-    super();
-    this.state = {
-      show_sensitive: false /* true: shown, false: hidden */
-    }
-  }
   render() {
     const msg = this.props.msg;
     let spoiler_text = (msg.sensitive) ? (<div>{ msg.spoiler_text }</div>) : null;
     let show_btn = (msg.sensitive) ? (<div><span className="show-btn" onClick={ () => {
       this.setState({ show_sensitive: true })
     }}>表示する</span></div>) : null;
-    let toot_message = (!msg.sensitive || this.state.show_sensitive) ? (
+    let toot_message = (!msg.sensitive || msg.show_sensitive) ? (
       <div dangerouslySetInnerHTML={{ __html: msg.message }}></div>
     ) : null;
 
@@ -156,6 +262,7 @@ class TootMessage extends React.Component {
   }
 }
 
+// attached media.
 class MediaAttachment extends React.Component {
   render() {
     return(
@@ -164,48 +271,76 @@ class MediaAttachment extends React.Component {
   }
 }
 
-/*
- * Setting Tab
+/**
+ * setting view
  */
 class Settings extends React.Component {
-  constructor() {
-    super();
-    this.state = {
-      color_theme: 'dark'
+  render() {
+    return(
+      <div>
+        <SettingsColorTheme handleChange={ this.props.changeConfig } color_theme={ this.props.config.color_theme } />
+        <ColorThemeStyle color_theme={ this.props.config.color_theme } />
+      </div>
+    );
+  }
+}
+Settings.propTypes = {
+  changeConfig: React.PropTypes.func.isRequired,
+  config: React.PropTypes.object,
+};
+
+// connect react to redux
+const SettingsContainer = connect(
+  (state) => {
+    return {
+      config: state.config,
+    };
+  },
+  (dispatch) => {
+    return {
+      changeConfig(config) {
+        dispatch(act_update_config(config));
+      },
     };
   }
-  changeColorTheme(theme) {
-    var l = document.getElementById('color_theme');
-    switch(theme) {
-      case 'dark':
-        l.href = 'css/cl_dark.css';
-        break;
-      case 'bright':
-        l.href = 'css/cl_bright.css';
-        break;
-    }
-  }
+)(Settings);
+
+/**
+ * change color view
+ */
+class SettingsColorTheme extends React.Component {
   render() {
     return(
       <div>
         <label>
-          <input type="radio" name="color-theme" value="dark" checked={this.state.color_theme === 'dark'}
+          <input type="radio" name="color-theme" value="dark" checked={ this.props.color_theme === 'dark'}
             onChange={() => {
-              this.setState({ color_theme: 'dark' });
-              this.changeColorTheme('dark');
+              this.props.handleChange({ color_theme: 'dark' });
             }} />
           dark
         </label>
         <label>
-          <input type="radio" name="color-theme" value="bright" checked={this.state.color_theme === 'bright'}
+          <input type="radio" name="color-theme" value="bright" checked={this.props.color_theme === 'bright'}
             onChange={() => {
-              this.setState({ color_theme: 'bright' });
-              this.changeColorTheme('bright');
+              this.props.handleChange({ color_theme: 'bright' });
             }} />
           bright
         </label>
       </div>
     );
+  }
+}
+
+/**
+ * css view
+ */
+class ColorThemeStyle extends React.Component {
+  render() {
+    if (this.props.color_theme === 'dark') {
+      return <link rel='stylesheet' type='text/css' href='css/cl_dark.css' />
+    } else {
+      return <link rel='stylesheet' type='text/css' href='css/cl_bright.css' />
+    }
   }
 }
 
@@ -216,11 +351,15 @@ class AppTab extends React.Component {
   componentDidMount() {
     // render home timeline after div is mounted.
     ReactDOM.render(
-      <TootBox />,
+      <Provider store={ store }>
+        <TootBoxContainer />
+      </Provider>,
       document.getElementById('home_timeline')
     );
     ReactDOM.render(
-      <Settings />,
+      <Provider store={ store }>
+        <SettingsContainer />
+      </Provider>,
       document.getElementById('settings_area')
     );
   }
