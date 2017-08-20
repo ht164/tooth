@@ -7,8 +7,8 @@ body {
   margin: 0 0 2px !important;
 }
 
-div#home_timeline {
-  max-height: 85vh;
+div.tab-area {
+  max-height: 85vh;  /* to be modified */
   overflow-y: scroll;
 }
 
@@ -59,6 +59,7 @@ span.display-name {
 
 div.toot-time {
   float: right;
+  font-size: 11px;
 }
 
 div.message-area {
@@ -91,6 +92,36 @@ div.btn-area div.btn {
 
 div.toot-post-parts {
   display: inline-block;
+}
+
+div.notify-title {
+}
+
+div.notify-avatar {
+  width: 24px;
+  height: 24px;
+  background-size: 24px 24px;
+  display: inline-block;
+  border-radius: 3px;
+}
+
+div.notify-msg {
+  display: inline-block;
+}
+span.notify-time {
+  font-size: 11px;
+}
+
+div.your-toot {
+  margin: 2px;
+  border: 0.8px solid;
+  padding: 4px;
+}
+
+div.your-toot-msg p {
+  -webkit-margin-before: 0em;
+  -webkit-margin-after: 0em;
+  word-break: break-all;
 }
 
 div.outer-textarea {

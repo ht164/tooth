@@ -13,6 +13,7 @@ const access_token = 'ACCESS_TOKEN';
  *
  * {
  *    toots: [ { toot }, { toot }, ... ],
+ *    notifies: [ { notify }, { notify }, ... ],
  *    config: { ... },
  * }
  */
@@ -26,6 +27,7 @@ const initialConfigState = {
 const ACT_ADD = "add";
 const ACT_UPDATE = "update";
 const ACT_DELETE = "delete";
+const ACT_NOTIFY = "notify";
 const ACT_UPDATE_CONFIG = "update_config";
 
 function act_add(toots) {
@@ -44,6 +46,12 @@ function act_delete(id) {
   return {
     type: ACT_DELETE,
     id: id,
+  };
+}
+function act_notify(notify) {
+  return {
+    type: ACT_NOTIFY,
+    notify: notify,
   };
 }
 function act_update_config(config) {
@@ -76,6 +84,15 @@ function toots(state = [], action) {
   }
 }
 
+function notifies(state = [], action) {
+  switch (action.type) {
+    case ACT_NOTIFY:
+      return ([action.notify]).concat(state);
+    default:
+      return state;
+  }
+}
+
 function config(state = initialConfigState, action) {
   switch (action.type) {
     case ACT_UPDATE_CONFIG:
@@ -87,6 +104,7 @@ function config(state = initialConfigState, action) {
 
 const reducer = combineReducers({
   toots,
+  notifies,
   config,
 });
 
@@ -152,6 +170,23 @@ class TootBox extends React.Component {
       console.error(error)
     });
   }
+  createNotifyObj(notify) {
+    var n = {
+      id: notify.id,
+      type: notify.type,
+      notified_by: {
+        display_name: notify.account.display_name,
+        account: notify.account.acct,
+        avatar: notify.account.avatar,
+      },
+      target_toot: {
+        id: notify.status.id,
+        content: notify.status.content
+      },
+      time: new Date(notify.created_at),
+    };
+    return n;
+  }
   connectWebSocket() {
     var ws = new WebSocket('wss://' + host + '/api/v1/streaming/?access_token=' + access_token + '&stream=user');
     ws.onmessage = (message) => {
@@ -164,6 +199,9 @@ class TootBox extends React.Component {
           break;
         case 'delete':
           this.props.delToot(p);
+          break;
+        case 'notification':
+          this.props.notify(this.createNotifyObj(p));
           break;
       }
     }
@@ -186,6 +224,7 @@ TootBox.propTypes = {
   toots: React.PropTypes.array,
   addToots: React.PropTypes.func,
   delToot: React.PropTypes.func,
+  notify: React.PropTypes.func,
 };
 
 // connect react to redux
@@ -202,6 +241,9 @@ const TootBoxContainer = connect(
       },
       delToot(id) {
         dispatch(act_delete(id));
+      },
+      notify(n) {
+        dispatch(act_notify(n));
       },
     };
   }
@@ -226,10 +268,7 @@ class OneToot extends React.Component {
         <MediaAttachment media={media_attachment} />
       );
     }
-    let toot_time = '';
-    toot_time = ('0' + toot.time.getHours()).slice(-2) + ':'
-      + ('0' + toot.time.getMinutes()).slice(-2) + ':'
-      + ('0' + toot.time.getSeconds()).slice(-2);
+    let toot_time = createTimeStr(toot.time);
     return(
       <article className="toot">
         <div className="toot">
@@ -342,6 +381,60 @@ class TootButton extends React.Component {
 }
 
 /**
+ * notify view
+ */
+class NotifyBox extends React.Component {
+  render() {
+    return (
+      <div className="tootbox">
+        { this.props.notifies.map((notify) =>
+          <OneNotify notify={ notify } />
+        )}
+      </div>
+    );
+  }
+}
+// connect react to redux
+const NotifyBoxContainer = connect(
+  (state) => {
+    return {
+      notifies: state.notifies,
+    };
+  }
+)(NotifyBox);
+
+/**
+ * view (presentational component)
+ */
+// each notify
+class OneNotify extends React.Component {
+  render() {
+    const notify = this.props.notify;
+    let msg = "";
+    switch(notify.type) {
+      case 'favourite':
+        msg = notify.notified_by.display_name + 'さんにふぁぼられました。';
+        break;
+      case 'reblog':
+        msg = notify.notified_by.display_name + 'さんにBTされました。';
+        break;
+    }
+    let notify_time = createTimeStr(notify.time);
+    return (
+      <article className="notify">
+        <div className="notify-title">
+          <div className="notify-avatar" style={{ backgroundImage: "url(" + notify.notified_by.avatar + ")"}}></div>
+          <div className="notify-msg">{ msg } <span className="notify-time">({ notify_time })</span></div>
+        </div>
+        <div className="your-toot">
+          <div className="your-toot-msg" dangerouslySetInnerHTML={{ __html: notify.target_toot.content }}></div>
+        </div>
+      </article>
+    );
+  }
+}
+
+/**
  * setting view
  */
 class Settings extends React.Component {
@@ -428,6 +521,12 @@ class AppTab extends React.Component {
     );
     ReactDOM.render(
       <Provider store={ store }>
+        <NotifyBoxContainer />
+      </Provider>,
+      document.getElementById('notify_area')
+    );
+    ReactDOM.render(
+      <Provider store={ store }>
         <SettingsContainer />
       </Provider>,
       document.getElementById('settings_area')
@@ -441,9 +540,9 @@ class AppTab extends React.Component {
           <Tab>Notify</Tab>
           <Tab>Setting</Tab>
         </TabList>
-        <TabPanel><div id="home_timeline"></div></TabPanel>
-        <TabPanel>TODO...</TabPanel>
-        <TabPanel><div id="settings_area"></div></TabPanel>
+        <TabPanel><div id="home_timeline" className="tab-area"></div></TabPanel>
+        <TabPanel><div id="notify_area" className="tab-area"></div></TabPanel>
+        <TabPanel><div id="settings_area" className="tab-area"></div></TabPanel>
       </Tabs>
     );
   }
@@ -458,3 +557,17 @@ ReactDOM.render(
   <TootPost />,
   document.getElementById('toot_post')
 );
+
+/**
+ * util
+ */
+function createTimeStr(date) {
+  var time = '';
+  time = date.getFullYear() + '/'
+    + ('0' + (date.getMonth() + 1)).slice(-2) + '/'
+    + ('0' + date.getDate()).slice(-2) + ' '
+    + ('0' + date.getHours()).slice(-2) + ':'
+    + ('0' + date.getMinutes()).slice(-2) + ':'
+    + ('0' + date.getSeconds()).slice(-2);
+  return time;
+}
