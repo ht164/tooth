@@ -21,6 +21,17 @@ span.show-btn {
   color: white;
 }
 
+div.outer-textarea {
+  border-color: #ccc;
+  background-color: white;
+}
+
+div.toot-btn {
+  border-color: #ccc;
+  background-color: #666;
+  color: white;
+}
+
 a {
   color: #848a90;
 }

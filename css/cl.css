@@ -8,7 +8,7 @@ body {
 }
 
 div#home_timeline {
-  max-height: 89vh;
+  max-height: 85vh;
   overflow-y: scroll;
 }
 
@@ -87,4 +87,29 @@ div.btn-area {
 
 div.btn-area div.btn {
   margin-right: 8px;
+}
+
+div.toot-post-parts {
+  display: inline-block;
+}
+
+div.outer-textarea {
+  border: 0.6px solid;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+div.outer-textarea textarea {
+  border: 0px;
+}
+
+div.toot-btn {
+  float: right;
+  border: 0.6px solid;
+  border-radius: 3px;
+}
+
+div.btn {
+  cursor: pointer;
+  padding: 4px;
 }

@@ -3,9 +3,10 @@ import ReactDOM from 'react-dom';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import { createStore, combineReducers } from 'redux';
 import { Provider, connect } from 'react-redux';
+import Mastodon from 'mstdn-api';
 
-var host = 'HOSTNAME';
-var access_token = 'ACCESS_TOKEN';
+const host = 'HOSTNAME';
+const access_token = 'ACCESS_TOKEN';
 
 /**
  * state
@@ -63,8 +64,13 @@ function toots(state = [], action) {
       // TBD
       return state;
     case ACT_DELETE:
-      // TBD
-      return state;
+      var new_state = [];
+      state.forEach((v, i, a) => {
+        if (v.id != action.id) {
+          new_state.push(v);
+        }
+      });
+      return new_state;
     default:
       return state;
   }
@@ -104,6 +110,7 @@ store.subscribe(() => {
 class TootBox extends React.Component {
   createTootObj(toot) {
     var t = {
+      id: toot.id, /* unique id */
       avatar: (toot.reblog) ? toot.reblog.account.avatar : toot.account.avatar,
       displayName: (toot.reblog) ? toot.reblog.account.display_name : toot.account.display_name,
       account: (toot.reblog) ? toot.reblog.account.acct : toot.account.acct,
@@ -150,9 +157,14 @@ class TootBox extends React.Component {
     ws.onmessage = (message) => {
       var d = eval('(' + message.data + ')');
       var p = eval('(' + d.payload + ')');
-      if (d.event == 'update') {
-        var t = this.createTootObj(p);
-        this.props.addToots([t]);
+      switch(d.event) {
+        case 'update':
+          var t = this.createTootObj(p);
+          this.props.addToots([t]);
+          break;
+        case 'delete':
+          this.props.delToot(p);
+          break;
       }
     }
   }
@@ -173,6 +185,7 @@ class TootBox extends React.Component {
 TootBox.propTypes = {
   toots: React.PropTypes.array,
   addToots: React.PropTypes.func,
+  delToot: React.PropTypes.func,
 };
 
 // connect react to redux
@@ -186,6 +199,9 @@ const TootBoxContainer = connect(
     return {
       addToots(toots) {
         dispatch(act_add(toots));
+      },
+      delToot(id) {
+        dispatch(act_delete(id));
       },
     };
   }
@@ -272,6 +288,60 @@ class MediaAttachment extends React.Component {
 }
 
 /**
+ * toot post view
+ */
+class TootPost extends React.Component {
+  toot() {
+    var msg = document.getElementById('toot_textbox').value;
+    if (msg == '') return;
+
+    var m = new Mastodon(access_token, host);
+    m.post('statuses', { status: msg });
+  }
+  render() {
+    return(
+      <div>
+        <TootInputTextBox />
+        <TootButton handleClick={ this.toot }/>
+      </div>
+    );
+  }
+}
+
+class TootInputTextBox extends React.Component {
+  resizeHeight(ev) {
+    var t = ev.target;
+    if (t.scrollHeight > t.offsetHeight) {
+      t.style.height = t.scrollHeight + 'px';
+    }
+  }
+  render() {
+    return(
+      <div className="toot-post-parts">
+        <div className="outer-textarea">
+          <textarea
+            style={{height: '1ex'}}
+            onKeyUp={(ev) => this.resizeHeight(ev)}
+            onCopy={(ev) => this.resizeHeight(ev)}
+            id='toot_textbox'  /* bad manner */
+          ></textarea>
+        </div>
+      </div>
+    );
+  }
+}
+
+class TootButton extends React.Component {
+  render() {
+    return(
+      <div className="toot-post-parts">
+        <div className="btn toot-btn" onClick={() => { this.props.handleClick(); }}>Toot</div>
+      </div>
+    );
+  }
+}
+
+/**
  * setting view
  */
 class Settings extends React.Component {
@@ -349,7 +419,7 @@ class ColorThemeStyle extends React.Component {
  */
 class AppTab extends React.Component {
   componentDidMount() {
-    // render home timeline after div is mounted.
+    // render UI parts after div is mounted.
     ReactDOM.render(
       <Provider store={ store }>
         <TootBoxContainer />
@@ -382,4 +452,9 @@ class AppTab extends React.Component {
 ReactDOM.render(
   <AppTab />,
   document.getElementById('tab_area')
+);
+
+ReactDOM.render(
+  <TootPost />,
+  document.getElementById('toot_post')
 );
