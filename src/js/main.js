@@ -28,6 +28,7 @@ const ACT_ADD = "add";
 const ACT_UPDATE = "update";
 const ACT_DELETE = "delete";
 const ACT_NOTIFY = "notify";
+const ACT_ADD_NOTIFIES = "add_notifies";
 const ACT_UPDATE_CONFIG = "update_config";
 
 function act_add(toots) {
@@ -52,6 +53,12 @@ function act_notify(notify) {
   return {
     type: ACT_NOTIFY,
     notify: notify,
+  };
+}
+function act_add_notifies(notifies) {
+  return {
+    type: ACT_ADD_NOTIFIES,
+    notifies: notifies,
   };
 }
 function act_update_config(config) {
@@ -86,6 +93,8 @@ function toots(state = [], action) {
 
 function notifies(state = [], action) {
   switch (action.type) {
+    case ACT_ADD_NOTIFIES:
+      return action.notifies.concat(state);
     case ACT_NOTIFY:
       return ([action.notify]).concat(state);
     default:
@@ -126,90 +135,6 @@ store.subscribe(() => {
  */
 // home timeline.
 class TootBox extends React.Component {
-  createTootObj(toot) {
-    var t = {
-      id: toot.id, /* unique id */
-      avatar: (toot.reblog) ? toot.reblog.account.avatar : toot.account.avatar,
-      displayName: (toot.reblog) ? toot.reblog.account.display_name : toot.account.display_name,
-      account: (toot.reblog) ? toot.reblog.account.acct : toot.account.acct,
-      message: toot.content,
-      media_attachments: null,
-      time: new Date(toot.created_at),
-      bt_count: (toot.reblog) ? toot.reblog.reblogs_count : toot.reblogs_count,
-      fav_count: (toot.reglog) ? toot.reblog.favourites_count : toot.favourites_count,
-      sensitive: (toot.reblog) ? toot.reblog.sensitive : toot.sensitive,
-      spoiler_text: (toot.reblog) ? toot.reblog.spoiler_text : toot.spoiler_text,
-      boosted_by_avatar: (toot.reblog) ? toot.account.avatar : null,
-    };
-    var media_attachments = (toot.reblog) ? toot.reblog.media_attachments : toot.media_attachments;
-    if (media_attachments.length > 0) {
-      var ms = [];
-      media_attachments.forEach((media_attachment) => {
-        ms.push({
-          preview_url: media_attachment.preview_url,
-          url: media_attachment.url
-        });
-      });
-      t.media_attachments = ms;
-    }
-    return t;
-  }
-  loadTimeLine() {
-    fetch('https://' + host + '/api/v1/timelines/home?access_token=' + access_token, {
-      method: 'GET',
-    })
-    .then((response) => response.json())
-    .then((responseJson) => {
-      var toots = [];
-      responseJson.forEach((toot) => {
-        toots.push(this.createTootObj(toot));
-      });
-      this.props.addToots(toots);
-    })
-    .catch((error) => {
-      console.error(error)
-    });
-  }
-  createNotifyObj(notify) {
-    var n = {
-      id: notify.id,
-      type: notify.type,
-      notified_by: {
-        display_name: notify.account.display_name,
-        account: notify.account.acct,
-        avatar: notify.account.avatar,
-      },
-      target_toot: {
-        id: notify.status.id,
-        content: notify.status.content
-      },
-      time: new Date(notify.created_at),
-    };
-    return n;
-  }
-  connectWebSocket() {
-    var ws = new WebSocket('wss://' + host + '/api/v1/streaming/?access_token=' + access_token + '&stream=user');
-    ws.onmessage = (message) => {
-      var d = eval('(' + message.data + ')');
-      var p = eval('(' + d.payload + ')');
-      switch(d.event) {
-        case 'update':
-          var t = this.createTootObj(p);
-          this.props.addToots([t]);
-          break;
-        case 'delete':
-          this.props.delToot(p);
-          break;
-        case 'notification':
-          this.props.notify(this.createNotifyObj(p));
-          break;
-      }
-    }
-  }
-  componentDidMount() {
-    this.loadTimeLine();
-    this.connectWebSocket();
-  }
   render() {
     return (
       <div className="tootbox">
@@ -222,9 +147,6 @@ class TootBox extends React.Component {
 }
 TootBox.propTypes = {
   toots: React.PropTypes.array,
-  addToots: React.PropTypes.func,
-  delToot: React.PropTypes.func,
-  notify: React.PropTypes.func,
 };
 
 // connect react to redux
@@ -232,19 +154,6 @@ const TootBoxContainer = connect(
   (state) => {
     return {
       toots: state.toots,
-    };
-  },
-  (dispatch) => {
-    return {
-      addToots(toots) {
-        dispatch(act_add(toots));
-      },
-      delToot(id) {
-        dispatch(act_delete(id));
-      },
-      notify(n) {
-        dispatch(act_notify(n));
-      },
     };
   }
 )(TootBox);
@@ -548,8 +457,155 @@ class AppTab extends React.Component {
   }
 }
 
+/**
+ * App
+ */
+class App extends React.Component {
+  createTootObj(toot) {
+    var t = {
+      id: toot.id, /* unique id */
+      avatar: (toot.reblog) ? toot.reblog.account.avatar : toot.account.avatar,
+      displayName: (toot.reblog) ? toot.reblog.account.display_name : toot.account.display_name,
+      account: (toot.reblog) ? toot.reblog.account.acct : toot.account.acct,
+      message: toot.content,
+      media_attachments: null,
+      time: new Date(toot.created_at),
+      bt_count: (toot.reblog) ? toot.reblog.reblogs_count : toot.reblogs_count,
+      fav_count: (toot.reglog) ? toot.reblog.favourites_count : toot.favourites_count,
+      sensitive: (toot.reblog) ? toot.reblog.sensitive : toot.sensitive,
+      spoiler_text: (toot.reblog) ? toot.reblog.spoiler_text : toot.spoiler_text,
+      boosted_by_avatar: (toot.reblog) ? toot.account.avatar : null,
+    };
+    var media_attachments = (toot.reblog) ? toot.reblog.media_attachments : toot.media_attachments;
+    if (media_attachments.length > 0) {
+      var ms = [];
+      media_attachments.forEach((media_attachment) => {
+        ms.push({
+          preview_url: media_attachment.preview_url,
+          url: media_attachment.url
+        });
+      });
+      t.media_attachments = ms;
+    }
+    return t;
+  }
+  loadTimeLine() {
+    fetch('https://' + host + '/api/v1/timelines/home?access_token=' + access_token, {
+      method: 'GET',
+    })
+    .then((response) => response.json())
+    .then((responseJson) => {
+      var toots = [];
+      responseJson.forEach((toot) => {
+        toots.push(this.createTootObj(toot));
+      });
+      this.props.addToots(toots);
+    })
+    .catch((error) => {
+      console.error(error)
+    });
+  }
+  createNotifyObj(notify) {
+    var n = {
+      id: notify.id,
+      type: notify.type,
+      notified_by: {
+        display_name: notify.account.display_name,
+        account: notify.account.acct,
+        avatar: notify.account.avatar,
+      },
+      target_toot: {
+        id: notify.status.id,
+        content: notify.status.content
+      },
+      time: new Date(notify.created_at),
+    };
+    return n;
+  }
+  loadNotifies() {
+    fetch('https://' + host + '/api/v1/notifications?access_token=' + access_token, {
+      method: 'GET',
+    })
+    .then((response) => response.json())
+    .then((responseJson) => {
+      var notifies = [];
+      responseJson.forEach((notify) => {
+        notifies.push(this.createNotifyObj(notify));
+      });
+      this.props.addNotifies(notifies);
+    })
+    .catch((error) => {
+      console.error(error)
+    });
+  }
+  connectWebSocket() {
+    var ws = new WebSocket('wss://' + host + '/api/v1/streaming/?access_token=' + access_token + '&stream=user');
+    ws.onmessage = (message) => {
+      var d = eval('(' + message.data + ')');
+      var p = eval('(' + d.payload + ')');
+      switch(d.event) {
+        case 'update':
+          var t = this.createTootObj(p);
+          this.props.addToots([t]);
+          break;
+        case 'delete':
+          this.props.delToot(p);
+          break;
+        case 'notification':
+          this.props.notify(this.createNotifyObj(p));
+          break;
+      }
+    }
+  }
+  componentDidMount() {
+    this.loadTimeLine();
+    this.loadNotifies();
+    this.connectWebSocket();
+  }
+  render() {
+    return(
+      <AppTab />
+    );
+  }
+}
+App.propTypes = {
+  toots: React.PropTypes.array,
+  addToots: React.PropTypes.func,
+  delToot: React.PropTypes.func,
+  addNotifies: React.PropTypes.func,
+  notify: React.PropTypes.func,
+};
+
+// connect react to redux
+const AppContainer = connect(
+  (state) => {
+    return {
+      toots: state.toots,
+      notifies: state.notifies,
+    };
+  },
+  (dispatch) => {
+    return {
+      addToots(toots) {
+        dispatch(act_add(toots));
+      },
+      delToot(id) {
+        dispatch(act_delete(id));
+      },
+      addNotifies(notifies) {
+        dispatch(act_add_notifies(notifies));
+      },
+      notify(n) {
+        dispatch(act_notify(n));
+      },
+    };
+  }
+)(App);
+
 ReactDOM.render(
-  <AppTab />,
+  <Provider store={ store }>
+    <AppContainer />
+  </Provider>,
   document.getElementById('tab_area')
 );
 
