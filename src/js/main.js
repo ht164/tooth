@@ -27,6 +27,10 @@ const initialConfigState = {
 const ACT_ADD = "add";
 const ACT_UPDATE = "update";
 const ACT_DELETE = "delete";
+const ACT_BT = "bt";
+const ACT_UNBT = "unbt";
+const ACT_FAV = "fav";
+const ACT_UNFAV = "unfav";
 const ACT_NOTIFY = "notify";
 const ACT_ADD_NOTIFIES = "add_notifies";
 const ACT_UPDATE_CONFIG = "update_config";
@@ -46,6 +50,30 @@ function act_update(toot) {
 function act_delete(id) {
   return {
     type: ACT_DELETE,
+    id: id,
+  };
+}
+function act_bt(id) {
+  return {
+    type: ACT_BT,
+    id: id,
+  };
+}
+function act_unbt(id) {
+  return {
+    type: ACT_UNBT,
+    id: id,
+  };
+}
+function act_fav(id) {
+  return {
+    type: ACT_FAV,
+    id: id,
+  };
+}
+function act_unfav(id) {
+  return {
+    type: ACT_UNFAV,
     id: id,
   };
 }
@@ -84,6 +112,46 @@ function toots(state = [], action) {
         if (v.id != action.id) {
           new_state.push(v);
         }
+      });
+      return new_state;
+    case ACT_BT:
+      var new_state = [];
+      state.forEach((v, i, a) => {
+        if (v.id == action.id) {
+          v.bt_count++;
+          v.boosted = true;
+        }
+        new_state.push(v);
+      });
+      return new_state;
+    case ACT_UNBT:
+      var new_state = [];
+      state.forEach((v, i, a) => {
+        if (v.id == action.id) {
+          v.bt_count--;
+          v.boosted = false;
+        }
+        new_state.push(v);
+      });
+      return new_state;
+    case ACT_FAV:
+      var new_state = [];
+      state.forEach((v, i, a) => {
+        if (v.id == action.id) {
+          v.fav_count++;
+          v.faved = true;
+        }
+        new_state.push(v);
+      });
+      return new_state;
+    case ACT_UNFAV:
+      var new_state = [];
+      state.forEach((v, i, a) => {
+        if (v.id == action.id) {
+          v.fav_count--;
+          v.faved = false;
+        }
+        new_state.push(v);
       });
       return new_state;
     default:
@@ -139,7 +207,9 @@ class TootBox extends React.Component {
     return (
       <div className="tootbox">
         { this.props.toots.map((toot) =>
-          <OneToot toot={ toot } />
+          <OneToot toot={ toot }
+                   onBT={ this.props.onBT }
+                   onFav={ this.props.onFav } />
         )}
       </div>
     );
@@ -147,6 +217,8 @@ class TootBox extends React.Component {
 }
 TootBox.propTypes = {
   toots: React.PropTypes.array,
+  onBT: React.PropTypes.func.isRequired,
+  onFav: React.PropTypes.func.isRequired,
 };
 
 // connect react to redux
@@ -163,6 +235,18 @@ const TootBoxContainer = connect(
  */
 // each toot
 class OneToot extends React.Component {
+  constructor(){
+    super();
+    // bind 'this'.
+    this.bt = this.bt.bind(this);
+    this.fav = this.fav.bind(this);
+  }
+  bt(e) {
+    this.props.onBT(e.currentTarget.getAttribute('data-id'));
+  }
+  fav(e) {
+    this.props.onFav(e.currentTarget.getAttribute('data-id'));
+  }
   render() {
     const toot = this.props.toot;
     let boost_avatar = null;
@@ -178,6 +262,8 @@ class OneToot extends React.Component {
       );
     }
     let toot_time = createTimeStr(toot.time);
+    let btn_bt_className = 'btn bt' + ((toot.boosted) ? ' bted' : '');
+    let btn_fav_className = 'btn fav' + ((toot.faved) ? ' faved' : '');
     return(
       <article className="toot">
         <div className="toot">
@@ -195,14 +281,18 @@ class OneToot extends React.Component {
             { media }
           </div>
           <div className="btn-area">
-            <div className="btn bt">BT: { toot.bt_count }</div>
-            <div className="btn fav">Fav: { toot.fav_count }</div>
+            <div className={ btn_bt_className } onClick={ this.bt } data-id={ toot.id }>BT: { toot.bt_count }</div>
+            <div className={ btn_fav_className } onClick={ this.fav } data-id={ toot.id }>Fav: { toot.fav_count }</div>
           </div>
         </div>
       </article>
     );
   }
 }
+OneToot.propTypes = {
+  onBT: React.PropTypes.func.isRequired,
+  onFav: React.PropTypes.func.isRequired,
+};
 
 // toot message
 class TootMessage extends React.Component {
@@ -327,17 +417,23 @@ class OneNotify extends React.Component {
       case 'reblog':
         msg = notify.notified_by.display_name + 'さんにBTされました。';
         break;
+      case 'follow':
+        msg = notify.notified_by.display_name + 'さんにフォローされました。';
+        break;
     }
     let notify_time = createTimeStr(notify.time);
+    let toot = (!notify.target_toot) ? null : (
+      <div className="your-toot">
+        <div className="your-toot-msg" dangerouslySetInnerHTML={{ __html: notify.target_toot.content }}></div>
+      </div>
+    );
     return (
       <article className="notify">
         <div className="notify-title">
           <div className="notify-avatar" style={{ backgroundImage: "url(" + notify.notified_by.avatar + ")"}}></div>
           <div className="notify-msg">{ msg } <span className="notify-time">({ notify_time })</span></div>
         </div>
-        <div className="your-toot">
-          <div className="your-toot-msg" dangerouslySetInnerHTML={{ __html: notify.target_toot.content }}></div>
-        </div>
+        { toot }
       </article>
     );
   }
@@ -424,7 +520,7 @@ class AppTab extends React.Component {
     // render UI parts after div is mounted.
     ReactDOM.render(
       <Provider store={ store }>
-        <TootBoxContainer />
+        <TootBoxContainer onBT={ this.props.onBT } onFav={ this.props.onFav }/>
       </Provider>,
       document.getElementById('home_timeline')
     );
@@ -456,11 +552,23 @@ class AppTab extends React.Component {
     );
   }
 }
+AppTab.propTypes = {
+  onBT: React.PropTypes.func.isRequired,
+  onFav: React.PropTypes.func.isRequired,
+};
 
 /**
  * App
  */
 class App extends React.Component {
+  constructor(){
+    super();
+    // instance variables.
+    this.m = new Mastodon(access_token, host);
+    // bind this.
+    this.bt = this.bt.bind(this);
+    this.fav = this.fav.bind(this);
+  }
   createTootObj(toot) {
     var t = {
       id: toot.id, /* unique id */
@@ -471,7 +579,9 @@ class App extends React.Component {
       media_attachments: null,
       time: new Date(toot.created_at),
       bt_count: (toot.reblog) ? toot.reblog.reblogs_count : toot.reblogs_count,
+      boosted: (toot.reblog) ? toot.reblog.reblogged : toot.reblogged,
       fav_count: (toot.reglog) ? toot.reblog.favourites_count : toot.favourites_count,
+      faved: (toot.reblog) ? toot.reblog.favourited : this.favourited,
       sensitive: (toot.reblog) ? toot.reblog.sensitive : toot.sensitive,
       spoiler_text: (toot.reblog) ? toot.reblog.spoiler_text : toot.spoiler_text,
       boosted_by_avatar: (toot.reblog) ? toot.account.avatar : null,
@@ -514,12 +624,14 @@ class App extends React.Component {
         account: notify.account.acct,
         avatar: notify.account.avatar,
       },
-      target_toot: {
-        id: notify.status.id,
-        content: notify.status.content
-      },
       time: new Date(notify.created_at),
     };
+    if (notify.type === 'favourite' || notify.type === 'reblog') {
+      n.target_toot = {
+        id: notify.status.id,
+        content: notify.status.content,
+      };
+    }
     return n;
   }
   loadNotifies() {
@@ -537,6 +649,36 @@ class App extends React.Component {
     .catch((error) => {
       console.error(error)
     });
+  }
+  bt(id) {
+    var bst = true;  // true is 'boost', false is 'unboost'
+    this.props.toots.forEach((toot) => {
+      if (toot.id == id) {
+        if (toot.reblogged) bst = false;
+      }
+    });
+    if (bst) {
+      this.m.post('statuses/' + id + '/reblog');
+      this.props.btToot(id);
+    } else {
+      this.m.post('statuses/' + id + '/unreblog');
+      this.props.unbtToot(id);
+    }
+  }
+  fav(id) {
+    var fav = true;  // true is 'fav', false is 'unfav'
+    this.props.toots.forEach((toot) => {
+      if (toot.id == id) {
+        if (toot.faved) fav = false;
+      }
+    });
+    if (fav) {
+      this.m.post('statuses/' + id + '/favourite');
+      this.props.favToot(id);
+    } else {
+      this.m.post('statuses/' + id + '/unfavourite');
+      this.props.unfavToot(id);
+    }
   }
   connectWebSocket() {
     var ws = new WebSocket('wss://' + host + '/api/v1/streaming/?access_token=' + access_token + '&stream=user');
@@ -564,7 +706,7 @@ class App extends React.Component {
   }
   render() {
     return(
-      <AppTab />
+      <AppTab onBT={ this.bt } onFav={ this.fav }/>
     );
   }
 }
@@ -572,6 +714,10 @@ App.propTypes = {
   toots: React.PropTypes.array,
   addToots: React.PropTypes.func,
   delToot: React.PropTypes.func,
+  btToot: React.PropTypes.func,
+  unbtToot: React.PropTypes.func,
+  favToot: React.PropTypes.func,
+  unfavToot: React.PropTypes.func,
   addNotifies: React.PropTypes.func,
   notify: React.PropTypes.func,
 };
@@ -591,6 +737,18 @@ const AppContainer = connect(
       },
       delToot(id) {
         dispatch(act_delete(id));
+      },
+      btToot(id) {
+        dispatch(act_bt(id));
+      },
+      unbtToot(id) {
+        dispatch(act_unbt(id));
+      },
+      favToot(id) {
+        dispatch(act_fav(id));
+      },
+      unfavToot(id) {
+        dispatch(act_unfav(id));
       },
       addNotifies(notifies) {
         dispatch(act_add_notifies(notifies));

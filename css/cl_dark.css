@@ -21,6 +21,14 @@ span.show-btn {
   color: white;
 }
 
+div.bted {
+  color: #88f;
+}
+
+div.faved {
+  color: #ff6;
+}
+
 div.outer-textarea {
   border-color: #ccc;
   background-color: white;
